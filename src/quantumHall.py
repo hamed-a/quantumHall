@@ -47,27 +47,34 @@ class QuantumHall:
 
         if voltages==None and temperatures==None:
             if num_terminals==None:
-                self.num_terminals = 2
+                self.num_terminals = 4
             else:
                 self.num_terminals =int( num_terminals )
+            self.voltages = np.zeros(self.num_terminals, dtype=float)    
+            self.temperatures = np.zeros(self.num_terminals, dtype=float)            
         elif voltages==None:
             self.num_terminals = len( temperatures )
             self.voltages = np.zeros(self.num_terminals, dtype=float)
+            self.temperatures = np.array(temperatures)
+        elif temperatures==None:
+            self.num_terminals = len( voltages )
+            self.voltages = np.array(voltages)
+            self.temperatures = np.zeros(self.num_terminals, dtype=float)
         else:
             self.num_terminals = len( voltages )
-            self.temperatures = np.zeros(self.num_terminals, dtype=float)
+            self.voltages = np.array(voltages)
+            self.temperatures = np.array(temperatures)
             
         if inter_terminal_length_vector==None:
             self.inter_terminal_length_vector = np.ones(self.num_terminals, dtype=float)
         else:
             self.inter_terminal_length_vector = np.array(inter_terminal_length_vector,dtype=float)
 
-            
-        self.construct_d_propagation_matrix()
+        self._construct_d_propagation_matrix()
         
-        self.conductance_tensor_calc_flag = { 'charge':False, 'heat':False  }
+        self._conductance_tensor_calc_flag = { 'charge':False, 'heat':False  }
             
-    def construct_d_propagation_matrix(self):
+    def _construct_d_propagation_matrix(self):
         self.charge_d_propagation_matrix = np.matrix( 
             [ 
                 [ self.chirality_vector[b]/self.charge_vector[b]*(self.charge_conduct_matrix[a,b]-
@@ -89,7 +96,7 @@ class QuantumHall:
                                                        )
 
         
-    def current_segment(self, d_propagation_matrix, potential_L,potential_R ,L):
+    def _current_segment(self, d_propagation_matrix, potential_L,potential_R ,L):
         """
         Returns the two current (electrical or thermal):
         - that travels from the left terminal to the right one
@@ -118,7 +125,7 @@ class QuantumHall:
 
 
 
-    def electrical_current_all_terminals(self):
+    def _electrical_current_all_terminals(self):
         current_outtoR = np.zeros(self.num_terminals)
         current_infromL = np.zeros(self.num_terminals)
         for segment in range(self.num_terminals):
@@ -137,8 +144,8 @@ class QuantumHall:
 
         return current_tot
     
-    def electrical_current(self,terminal_1,terminal_2):
-        current_tot = self.electrical_current_all_terminals()
+    def _electrical_current(self,terminal_1,terminal_2):
+        current_tot = self._electrical_current_all_terminals()
         return current_tot[terminal_1]-current_tot[terminal_2]
     
     def conductance_tensor(self,quantity='charge'):
@@ -179,30 +186,43 @@ class QuantumHall:
             sigma[terminal,terminal] = d_minus[ (terminal-1)%self.num_terminals ] - d_plus[terminal]
             sigma[terminal,(terminal+1 )%self.num_terminals ] = -d_minus[ terminal ]
             
-        self.conductance_tensor_calc_flag[quantity]=True
+        self._conductance_tensor_calc_flag[quantity]=True
         return sigma
     
-    def calc_conductance_tensors(self):
+    def _calc_conductance_tensors(self):
         self.charge_conductance_tensor = self.conductance_tensor('charge')
         self.heat_conductance_tensor = self.conductance_tensor('heat')
         
-    def temperature_to_heatcurrent(self, temperatures):
+    def _temperature_to_heatcurrent(self, temperatures):
         return [ kappa0*temperatures[i]**2/2 for i in range( len(temperatures) ) ]
         
-    def current_all_terminals(self,quantity='charge'):
+    def current_all_terminals(self,quantity='charge',unit='quantized'):
+        if unit=='quantized':
+            unit_coeff = 1
+        elif unit=='SI':
+            unit_coeff = sigma0
+        else:
+            raise ValueError("The unit should be either 'quantized' or 'SI'")
+            
         #self.calc_conductance_tensors()
         if quantity=='charge':
             self.charge_conductance_tensor = self.conductance_tensor('charge')
             # The unit of output electrical current will be in amperes
-            return np.matmul( self.charge_conductance_tensor, self.voltages)*sigma0
+            return np.matmul( self.charge_conductance_tensor, self.voltages)*unit_coeff
         elif quantity=='heat':
             self.heat_conductance_tensor = self.conductance_tensor('heat')
-            # The unit of output electrical current will be in Watts
-            return temperature_to_heatcurrent( np.matmul( self.self.heat_conductance_tensor, self.temperatures) )
+            if unit=='quantized':
+                return np.matmul( self.self.heat_conductance_tensor, self.temperatures)
+            elif unit=='SI':
+                # The unit of output electrical current will be in Watts
+                return self._temperature_to_heatcurrent( np.matmul( self.self.heat_conductance_tensor, self.temperatures) )
         else:
-            raise NotImplementedError("The argument quantity should be either 'charge' or 'heat' ")
+            raise ValueError("The argument quantity should be either 'charge' or 'heat' ")
             
-    def four_terminal_conductance( self,quantity='charge' ,current_terminals, potential_terminals ):
+    def four_terminal_conductance( self ,current_terminals, potential_terminals ,quantity='charge'):
+        if self.num_terminals <3:
+            raise ValueError('Number of terminals shoud be at least 3')
+            
         current_order = [ current_terminals[0]-1,current_terminals[1]-1 ]
         for terminal in range(self.num_terminals):
             if not(terminal+1 in current_terminals):
@@ -213,13 +233,13 @@ class QuantumHall:
             if not(terminal+1 in potential_terminals):
                 potential_order += [terminal]
         
-        if self.conductance_tensor_calc_flag[quantity]==False:
+        if self._conductance_tensor_calc_flag[quantity]==False:
             if quantity=='charge':
                 self.charge_conductance_tensor = self.conductance_tensor('charge')
             elif quantity=='heat':
                 self.heat_conductance_tensor = self.conductance_tensor('heat')
             else:
-                raise NotImplementedError("The argument quantity should be either 'charge' or 'heat' ")
+                raise ValueError("The argument quantity should be either 'charge' or 'heat' ")
         
         
         if quantity=='charge':
@@ -227,20 +247,38 @@ class QuantumHall:
         elif quantity=='heat':
             sigma_shuffled = self.heat_conductance_tensor[ current_order ].transpose()[potential_order].transpose()
         else:
-            raise NotImplementedError("The argument quantity should be either 'charge' or 'heat' ")
+            raise ValueError("The argument quantity should be either 'charge' or 'heat' ")
         
         sigma_SS = sigma_shuffled[:2,:2].copy()
         sigma_ST = sigma_shuffled[:2,2:self.num_terminals].copy()
         sigma_TS = sigma_shuffled[2:self.num_terminals,:2].copy()
         sigma_TT = sigma_shuffled[2:self.num_terminals,2:self.num_terminals].copy()
-        
+        #return self.charge_conductance_tensor, sigma_shuffled
         try:
             four_terminal_sigma = sigma_SS-np.matmul( sigma_ST, np.matmul( la.inv(sigma_TT ), sigma_TS) )
             return -four_terminal_sigma[0,0]
         except la.LinAlgError:
-            raise la.LinAlgError( 'Error: The current between the terminals {} and {} cannot be determined solely from the potentials at'\
+            raise la.LinAlgError( 'Error: The current between the terminals {} and {} cannot be determined from the potentials at'\
                   ' the terminals {} and {}'.format( current_terminals[0],current_terminals[1],potential_terminals[0],potential_terminals[1] ) )
             
             
-    def two_terminal_conductance(self, quantity='charge'):
-        return self.four_terminal_conductance(quantity,(1,2),(1,2) )
+    def two_terminal_conductance(self, voltage_terminals , quantity='charge'):
+        if self.num_terminals>2:
+            return self.four_terminal_conductance(voltage_terminals,voltage_terminals,quantity )
+        
+        if self._conductance_tensor_calc_flag[quantity]==False:
+            if quantity=='charge':
+                self.charge_conductance_tensor = self.conductance_tensor('charge')
+            elif quantity=='heat':
+                self.heat_conductance_tensor = self.conductance_tensor('heat')
+            else:
+                raise ValueError("The argument quantity should be either 'charge' or 'heat' ")
+         
+        if quantity=='charge':
+            return -self.charge_conductance_tensor[0,0]
+        elif quantity=='heat':
+            return -self.heat_conductance_tensor[0,0]
+        else:
+            raise ValueError("The argument quantity should be either 'charge' or 'heat' ")
+                
+        

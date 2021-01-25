@@ -1,8 +1,9 @@
 import ipywidgets as widgets
 from ipywidgets import interactive_output, Layout, HBox, VBox, Box, Label
-from .quantumHall_bar import DrawQuantumHall
+from .quantumHall_draw import DrawQuantumHall
+from .quantumHall import QuantumHall
 
-class QuantumHallWidgets():
+class QuantumHallInteractive():
     def __init__(self,num_modes=2,num_terminals=2):
         self.num_modes = num_modes
         self.num_terminals = num_terminals
@@ -76,11 +77,11 @@ class QuantumHallWidgets():
         self.temperature_vec = [self.temperature_wdgts[m].value for m in range(1,self.num_terminals+1) ]
         
         # Taking the conductivity coefficients
-        self.charge_conduct_matrix =[ [ self.conduct_matrix_wdgt_max['Charge'][row][column] 
+        self.charge_conduct_matrix =[ [ self.conduct_matrix_wdgt_max['Charge'][row][column].value 
                                   for row in range(2,self.num_modes+2)  ]
                                 for column in range(1,self.num_modes+1)  ]
 
-        self.heat_conduct_matrix =[ [ self.conduct_matrix_wdgt_max['Heat'][row][column] 
+        self.heat_conduct_matrix =[ [ self.conduct_matrix_wdgt_max['Heat'][row][column].value 
                                   for row in range(2,self.num_modes+2)  ]
                                 for column in range(1,self.num_modes+1)  ]
 
@@ -91,12 +92,13 @@ class QuantumHallWidgets():
                      voltages=self.voltage_vec, temperatures = self.temperature_vec )
         
         # unit of electrical current will be picoAmpere
-        self.charge_currents = qh.current_all_terminals('charge')*1e12
+        self.charge_currents = qh.current_all_terminals('charge','SI')*1e12
         # unit of thermla current will be femtoWatts
-        self.heat_currents = qh.current_all_terminals('charge')*1e15
+        self.heat_currents = qh.current_all_terminals('charge','SI')*1e15
         
-        self.four_terminal_thermal_conductance = qh.four_terminal_conductance('charge')
-        self.four_terminal_electrical_conductance = qh.four_terminal_conductance('heat')
+        if self.num_terminals>3:
+            self.four_terminal_thermal_conductance = qh.four_terminal_conductance((1,3),(2,4), 'charge' )
+            self.four_terminal_electrical_conductance = qh.four_terminal_conductance((1,3),(2,4), 'heat')
         
         self.two_terminal_thermal_conductance = qh.two_terminal_conductance('charge')
         self.two_terminal_electrical_conductance = qh.two_terminal_conductance('heat')
@@ -170,7 +172,7 @@ class QuantumHallWidgets():
         display( VBox( [HBox(self.voltage_wdgts), HBox(self.temperature_wdgts) ] ,layout=vert_layout  ) )
 
         self.take_widget_values()
-        self.calcaulate_transport()
+        self.calculate_transport()
         
         
         
@@ -219,7 +221,6 @@ class QuantumHallWidgets():
         self.conduct_matrix_wdgt_max = {}
         self.init_conduct_matrix_wdgt('Charge')
         self.init_conduct_matrix_wdgt('Heat')
-        #print( self.conduct_matrix_wdgt_max['Charge'] )
     
     def updated_conduct_matrix_wdgt(self,quantity):
         #row=
@@ -274,7 +275,7 @@ class QuantumHallWidgets():
         return tab
     
     def observe_widget_values(self):
-        
+        pass
 
     def display_all(self):
         #self.num_terminals_old, self.num_modes_old = 2,1
