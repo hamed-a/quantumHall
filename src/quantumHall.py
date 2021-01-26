@@ -169,26 +169,31 @@ class QuantumHall:
         d_plus = np.zeros( self.num_terminals, dtype=float )
         d_minus = np.zeros( self.num_terminals, dtype=float )
 
+        eigvals , eigvecs = la.eig( np.matrix( d_propagation_matrix,dtype= np.float ) )
         for terminal in range(self.num_terminals):
-            eigvals , eigvecs = la.eig( np.matrix( d_propagation_matrix,dtype= np.float ) )
             propagation_matrix = np.matrix( [ [np.exp( zeroone_vec[j]*self.inter_terminal_length_vector[terminal]*eigvals[a]  )
-                                               *eigvecs[j,a] for a in range(self.num_modes)] for j in range(self.num_modes)   ] ,dtype=np.double)
-            Ieig_Pinv = np.matmul( eigvecs,la.inv(propagation_matrix) )
-            d_plus[terminal] = sum( sum( Ieig_Pinv[j,i]*self.chirality_vector[i]*quant_charge_vector[i]*(1+self.chirality_vector[i] )/2 
+                                               *eigvecs[j,a] for j in range(self.num_modes)] 
+                                             for a in range(self.num_modes)   ] ,dtype=np.float)
+            
+            Ieig_Pinv = np.real( np.matmul( eigvecs,la.inv(propagation_matrix) ) )
+            
+            d_plus[terminal] = sum( sum( Ieig_Pinv[j,i]*self.chirality_vector[i]*quant_charge_vector[i]*
+                                        (1+self.chirality_vector[i] )/2 
                                         for j in range(self.num_modes)  )
                         for i in range(self.num_modes)  )
-            d_minus[terminal] = sum( sum( Ieig_Pinv[j,i]*self.chirality_vector[i]*quant_charge_vector[i]*(1-self.chirality_vector[i] )/2 
+            d_minus[terminal] = sum( sum( Ieig_Pinv[j,i]*self.chirality_vector[i]*quant_charge_vector[i]*
+                                         (1-self.chirality_vector[i] )/2 
                                          for j in range(self.num_modes)  )
                         for i in range(self.num_modes)  )
-
+        #print( d_plus, d_minus )
         #print(self.num_terminals, d_plus)
         #terminal = 0
         #print( d_plus[ (terminal-1)%self.num_terminals ] )
         sigma = np.zeros( (self.num_terminals, self.num_terminals), dtype=float   )
         for terminal in range(self.num_terminals):
-            sigma[terminal,(terminal-1 )%self.num_terminals ] = d_plus[ (terminal-1)%self.num_terminals ]
+            sigma[terminal,(terminal-1 )%self.num_terminals ] += d_plus[ (terminal-1)%self.num_terminals ]
             sigma[terminal,terminal] = d_minus[ (terminal-1)%self.num_terminals ] - d_plus[terminal]
-            sigma[terminal,(terminal+1 )%self.num_terminals ] = -d_minus[ terminal ]
+            sigma[terminal,(terminal+1 )%self.num_terminals ] += -d_minus[ terminal ]
 
         self._conductance_tensor_calc_flag[quantity]=True
         return sigma
@@ -198,7 +203,7 @@ class QuantumHall:
         self.heat_conductance_tensor = self.conductance_tensor('heat')
 
     def _temperature_to_heatcurrent(self, temperatures):
-        return [ kappa0*temperatures[i]**2/2 for i in range( len(temperatures) ) ]
+        return np.array( [ kappa0*temperatures[i]**2/2 for i in range( len(temperatures) ) ] )
 
     def current_all_terminals(self,quantity='charge',unit='quantized'):
         if unit=='quantized':
@@ -219,7 +224,7 @@ class QuantumHall:
                 return np.matmul( self.self.heat_conductance_tensor, self.temperatures)
             elif unit=='SI':
                 # The unit of output electrical current will be in Watts
-                return self._temperature_to_heatcurrent( np.matmul( self.self.heat_conductance_tensor, self.temperatures) )
+                return self._temperature_to_heatcurrent( np.matmul( self.heat_conductance_tensor, self.temperatures) )
         else:
             raise ValueError("The argument quantity should be either 'charge' or 'heat' ")
 

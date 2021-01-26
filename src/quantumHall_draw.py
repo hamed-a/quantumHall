@@ -42,7 +42,7 @@ class DrawQuantumHall():
         middle_x = 0
         middle_y = 0
         #color=color
-        arrow_size = 0.3
+        arrow_size = 0.4
         linestyle = '-'
 
         mode_obj = []
@@ -71,7 +71,7 @@ class DrawQuantumHall():
             del self.mode_object_list
         plt_obj = self.plt_obj
         mode_margin = 0.5
-        mode_distance = 0.3
+        mode_distance = 0.5
         cmap = mpl.cm.get_cmap('viridis')
         max_num_modes = 10
         mode_object_list = [] 
@@ -197,8 +197,8 @@ class DrawQuantumHall():
 
         rect = mpat.Rectangle( (-self.Lx,-self.Ly), 2*self.Lx,2*self.Ly,color=(0.8,0.8,0.9,0.5) )
         ax.add_patch(rect)
-        filling_fraction = np.dot(self.chirality_vector, self.charge_vector  )
-        plt.text( 0,0, 'Quantum Hall bar at filling fraction '+str( filling_fraction ),
+        filling_fraction = abs( np.dot(self.chirality_vector, self.charge_vector  ) )
+        plt.text( 0,0, 'Quantum Hall bar at filling fraction '+'{:.2f}'.format( filling_fraction ),
                   fontfamily='sans-serif',fontsize='xx-large',ha='center', va='center' )
 
         self.draw_terminals()
