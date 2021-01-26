@@ -13,20 +13,24 @@ class DrawQuantumHall():
         #self.draw_QHall_bar(self.num_terminals_0,3)
         #self.display_gizmos()
 
-        if chirality_vector==None:
+        if chirality_vector is None:
             self.chirality_vector = np.ones(self.num_modes, dtype=int)
         elif len(chirality_vector)!= self.num_modes:
             raise TypeError('The length of the chirality vector does not match the number of modes')
         else:
             self.chirality_vector = np.array(chirality_vector)
-            
-        if charge_vector==None:
+
+        if charge_vector is None:
             self.charge_vector = np.ones(self.num_modes, dtype=int)
         elif len(charge_vector)!= self.num_modes:
             raise TypeError('The length of the charge vector does not match the number of modes')
         else:
             self.charge_vector = np.array(charge_vector)
+            
+        self.init_plot_objects()
 
+    def init_plot_objects(self):
+        self.mode_object_list = None
 
 
     def draw_one_mode(self, plt_obj ,margin ,color,chirality):
@@ -41,35 +45,53 @@ class DrawQuantumHall():
         arrow_size = 0.3
         linestyle = '-'
 
+        mode_obj = []
         # top line
-        plt_obj.plot( (left_x,right_x),(top_y,top_y), color=color,ls=linestyle )
-        plt_obj.arrow( middle_x,top_y,arrow_size*chirality,0 ,shape='full',
-                      length_includes_head=True,head_width=arrow_size,overhang=0.5,color=color)
+        mode_obj.append( plt_obj.plot( (left_x,right_x),(top_y,top_y), color=color,ls=linestyle ) )
+        mode_obj.append( plt_obj.arrow( middle_x,top_y,arrow_size*chirality,0 ,shape='full',
+                      length_includes_head=True,head_width=arrow_size,overhang=0.5,color=color) )
 
-        plt_obj.plot( (right_x,right_x),(top_y,bottom_y), color=color,ls=linestyle )
-        plt_obj.arrow( right_x,middle_y,0,-arrow_size*chirality ,shape='full',
-                      length_includes_head=True,head_width=arrow_size,overhang=0.5,color=color)
+        mode_obj.append(plt_obj.plot( (right_x,right_x),(top_y,bottom_y), color=color,ls=linestyle ) )
+        mode_obj.append(plt_obj.arrow( right_x,middle_y,0,-arrow_size*chirality ,shape='full',
+                      length_includes_head=True,head_width=arrow_size,overhang=0.5,color=color) )
 
-        plt_obj.plot( (right_x,left_x),(bottom_y,bottom_y), color=color,ls=linestyle )
-        plt_obj.arrow( middle_x,bottom_y,-arrow_size*chirality,0 ,shape='full',
-                      length_includes_head=True,head_width=arrow_size,overhang=0.5,color=color)
+        mode_obj.append(plt_obj.plot( (right_x,left_x),(bottom_y,bottom_y), color=color,ls=linestyle ) )
+        mode_obj.append(plt_obj.arrow( middle_x,bottom_y,-arrow_size*chirality,0 ,shape='full',
+                      length_includes_head=True,head_width=arrow_size,overhang=0.5,color=color))
 
-        plt_obj.plot( (left_x,left_x),(bottom_y,top_y), color=color,ls=linestyle )
-        plt_obj.arrow( left_x,middle_y,0,arrow_size*chirality ,shape='full',
-                      length_includes_head=True,head_width=arrow_size,overhang=0.5,color=color)
+        mode_obj.append(plt_obj.plot( (left_x,left_x),(bottom_y,top_y), color=color,ls=linestyle ) )
+        mode_obj.append(plt_obj.arrow( left_x,middle_y,0,arrow_size*chirality ,shape='full',
+                      length_includes_head=True,head_width=arrow_size,overhang=0.5,color=color))
+        
+        return mode_obj
 
 
-    def draw_modes(self, plt ):
+    def draw_modes(self ):
+        if self.mode_object_list is not None:
+            del self.mode_object_list
+        plt_obj = self.plt_obj
         mode_margin = 0.5
         mode_distance = 0.3
         cmap = mpl.cm.get_cmap('viridis')
         max_num_modes = 10
+        mode_object_list = [] 
         for mode in range( self.num_modes ):
             color = cmap(mode/max_num_modes)
-            self.draw_one_mode(plt,mode_margin+mode*mode_distance,color, self.chirality_vector[mode] )
+            mode_object_list.append( self.draw_one_mode(plt_obj,mode_margin+mode*mode_distance,color, self.chirality_vector[mode] ) )
+            
+        self.mode_object_list = mode_object_list
 
-
-    def draw_terminals(self, plt_obj ):
+    def update_mode(self):
+        pass
+    
+    def update_value(self, var , value ):
+        if isinstance(var,str):
+            exec( 'self.'+var+'='+ str(value) )
+        else:
+            print('Warning: var should be a string. No value has been changed.')
+    
+    def draw_terminals(self  ):
+        plt_obj = self.plt_obj
         sides = 4
         num_terms_side = [0,0,0,0]
         side=0
@@ -165,12 +187,13 @@ class DrawQuantumHall():
         outer_margin = 4
 
         plt.figure( figsize=(15,10) )
+        self.plt_obj = plt
         ax = plt.gca()
         ax.set_xlim(-self.Lx-outer_margin,self.Lx+outer_margin)
         ax.set_ylim(-self.Ly-outer_margin,self.Ly+outer_margin)
 
 
-        self.draw_modes(plt )
+        self.draw_modes( )
 
         rect = mpat.Rectangle( (-self.Lx,-self.Ly), 2*self.Lx,2*self.Ly,color=(0.8,0.8,0.9,0.5) )
         ax.add_patch(rect)
@@ -178,5 +201,5 @@ class DrawQuantumHall():
         plt.text( 0,0, 'Quantum Hall bar at filling fraction '+str( filling_fraction ),
                   fontfamily='sans-serif',fontsize='xx-large',ha='center', va='center' )
 
-        self.draw_terminals(plt)
+        self.draw_terminals()
         plt.axis('off')

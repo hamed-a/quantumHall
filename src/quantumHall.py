@@ -17,7 +17,7 @@ class QuantumHall:
         # initializing
 
         # Default: all modes going downstream
-        if chirality_vector==None:
+        if chirality_vector is None:
             self.num_modes = 1
             self.chirality_vector = np.ones(self.num_modes, dtype=int)
         else:
@@ -25,38 +25,38 @@ class QuantumHall:
             self.chirality_vector = chirality_vector
 
         # Default: all modes have charage 1
-        if charge_vector==None:
+        if charge_vector is None:
             self.charge_vector = np.ones(self.num_modes, dtype=float)
         else:
             self.charge_vector = np.array(charge_vector,dtype=float)
 
-        if charge_conduct_matrix==None:
+        if charge_conduct_matrix is None:
             self.charge_conduct_matrix = np.zeros( (self.num_modes,self.num_modes),dtype=float )
         else:
             self.charge_conduct_matrix = np.matrix(charge_conduct_matrix,dtype=float)
 
-        if central_charge_vector==None:
+        if central_charge_vector is None:
             self.central_charge_vector = np.ones(self.num_modes, dtype=float)
         else:
             self.central_charge_vector = np.array(central_charge_vector,dtype=float)
-            
-        if heat_conduct_matrix==None:
+
+        if heat_conduct_matrix is None:
             self.heat_conduct_matrix = np.zeros( (self.num_modes,self.num_modes),dtype=float )
         else:
             self.heat_conduct_matrix = np.matrix(heat_conduct_matrix,dtype=float)
 
-        if voltages==None and temperatures==None:
-            if num_terminals==None:
+        if voltages is None and temperatures is None:
+            if num_terminals is None:
                 self.num_terminals = 4
             else:
                 self.num_terminals =int( num_terminals )
-            self.voltages = np.zeros(self.num_terminals, dtype=float)    
-            self.temperatures = np.zeros(self.num_terminals, dtype=float)            
-        elif voltages==None:
+            self.voltages = np.zeros(self.num_terminals, dtype=float)
+            self.temperatures = np.zeros(self.num_terminals, dtype=float)
+        elif voltages is None:
             self.num_terminals = len( temperatures )
             self.voltages = np.zeros(self.num_terminals, dtype=float)
             self.temperatures = np.array(temperatures)
-        elif temperatures==None:
+        elif temperatures is None:
             self.num_terminals = len( voltages )
             self.voltages = np.array(voltages)
             self.temperatures = np.zeros(self.num_terminals, dtype=float)
@@ -64,38 +64,38 @@ class QuantumHall:
             self.num_terminals = len( voltages )
             self.voltages = np.array(voltages)
             self.temperatures = np.array(temperatures)
-            
-        if inter_terminal_length_vector==None:
+
+        if inter_terminal_length_vector is None:
             self.inter_terminal_length_vector = np.ones(self.num_terminals, dtype=float)
         else:
             self.inter_terminal_length_vector = np.array(inter_terminal_length_vector,dtype=float)
 
         self._construct_d_propagation_matrix()
-        
+
         self._conductance_tensor_calc_flag = { 'charge':False, 'heat':False  }
-            
+
     def _construct_d_propagation_matrix(self):
-        self.charge_d_propagation_matrix = np.matrix( 
-            [ 
+        self.charge_d_propagation_matrix = np.matrix(
+            [
                 [ self.chirality_vector[b]/self.charge_vector[b]*(self.charge_conduct_matrix[a,b]-
-            np.identity(self.num_modes)[a,b]*sum(self.charge_conduct_matrix[a,c]  for c in range(self.num_modes))  ) 
-                                                         for a in range(self.num_modes) 
+            np.identity(self.num_modes)[a,b]*sum(self.charge_conduct_matrix[a,c]  for c in range(self.num_modes))  )
+                                                         for a in range(self.num_modes)
                 ]
-                                                      for b in range(self.num_modes) 
+                                                      for b in range(self.num_modes)
             ]
                                                        )
 
-        self.heat_d_propagation_matrix = np.matrix( 
-            [ 
+        self.heat_d_propagation_matrix = np.matrix(
+            [
                 [ self.chirality_vector[b]/self.central_charge_vector[b]*(self.heat_conduct_matrix[a,b]-
-            np.identity(self.num_modes)[a,b]*sum(self.heat_conduct_matrix[a,c]  for c in range(self.num_modes))  ) 
-                                                         for a in range(self.num_modes) 
+            np.identity(self.num_modes)[a,b]*sum(self.heat_conduct_matrix[a,c]  for c in range(self.num_modes))  )
+                                                         for a in range(self.num_modes)
                 ]
-                                                      for b in range(self.num_modes) 
+                                                      for b in range(self.num_modes)
             ]
                                                        )
 
-        
+
     def _current_segment(self, d_propagation_matrix, potential_L,potential_R ,L):
         """
         Returns the two current (electrical or thermal):
@@ -129,13 +129,13 @@ class QuantumHall:
         current_outtoR = np.zeros(self.num_terminals)
         current_infromL = np.zeros(self.num_terminals)
         for segment in range(self.num_terminals):
-            #current_LtoR[segment],current_RtoL[segment] = 
+            #current_LtoR[segment],current_RtoL[segment] =
             current = self.current_segment( self.charge_d_propagation_matrix, self.voltages[segment],
-                                                                self.voltages[(segment+1)%self.num_terminals], 
+                                                                self.voltages[(segment+1)%self.num_terminals],
                                                                  self.inter_terminal_length_vector[segment] )
             current_outtoR[segment] = current
             current_infromL[ (segment+1)%self.num_terminals ] = current
-            
+
         current_tot = np.zeros(self.num_terminals)
         #current_tot = []
         for terminal in range(self.num_terminals):
@@ -143,40 +143,44 @@ class QuantumHall:
             #current_tot.append( (current_infromL[terminal],current_outtoR[terminal]) )
 
         return current_tot
-    
+
     def _electrical_current(self,terminal_1,terminal_2):
         current_tot = self._electrical_current_all_terminals()
         return current_tot[terminal_1]-current_tot[terminal_2]
-    
+
     def conductance_tensor(self,quantity='charge'):
         """
-        calculates sigma in 
+        calculates sigma in
         - I = sigma.V for 'charge'
         - J = sigma.T^2/2 for 'heat'
         """
         if quantity=='charge':
             d_propagation_matrix = self.charge_d_propagation_matrix
+            quant_charge_vector = self.charge_vector
         elif quantity=='heat':
             d_propagation_matrix = self.heat_d_propagation_matrix
+            quant_charge_vector = self.central_charge_vector
         else:
             raise NotImplementedError("The argument quantity should be either 'charge' or 'heat' ")
-            
+
         # zero if positive and 1 if negative
         zeroone_vec = [ (1-c)/2 for c in self.chirality_vector  ]
-            
+
         d_plus = np.zeros( self.num_terminals, dtype=float )
         d_minus = np.zeros( self.num_terminals, dtype=float )
-        
+
         for terminal in range(self.num_terminals):
             eigvals , eigvecs = la.eig( np.matrix( d_propagation_matrix,dtype= np.float ) )
             propagation_matrix = np.matrix( [ [np.exp( zeroone_vec[j]*self.inter_terminal_length_vector[terminal]*eigvals[a]  )
                                                *eigvecs[j,a] for a in range(self.num_modes)] for j in range(self.num_modes)   ] ,dtype=np.double)
-            Ieig_Pinv = np.matmul( eigvecs,la.inv(propagation_matrix) ) 
-            d_plus[terminal] = sum( sum( Ieig_Pinv[j,i]*(1+self.chirality_vector[i] )/2 for j in range(self.num_modes)  ) 
+            Ieig_Pinv = np.matmul( eigvecs,la.inv(propagation_matrix) )
+            d_plus[terminal] = sum( sum( Ieig_Pinv[j,i]*self.chirality_vector[i]*quant_charge_vector[i]*(1+self.chirality_vector[i] )/2 
+                                        for j in range(self.num_modes)  )
                         for i in range(self.num_modes)  )
-            d_minus[terminal] = sum( sum( Ieig_Pinv[j,i]*(1-self.chirality_vector[i] )/2 for j in range(self.num_modes)  ) 
+            d_minus[terminal] = sum( sum( Ieig_Pinv[j,i]*self.chirality_vector[i]*quant_charge_vector[i]*(1-self.chirality_vector[i] )/2 
+                                         for j in range(self.num_modes)  )
                         for i in range(self.num_modes)  )
-            
+
         #print(self.num_terminals, d_plus)
         #terminal = 0
         #print( d_plus[ (terminal-1)%self.num_terminals ] )
@@ -185,17 +189,17 @@ class QuantumHall:
             sigma[terminal,(terminal-1 )%self.num_terminals ] = d_plus[ (terminal-1)%self.num_terminals ]
             sigma[terminal,terminal] = d_minus[ (terminal-1)%self.num_terminals ] - d_plus[terminal]
             sigma[terminal,(terminal+1 )%self.num_terminals ] = -d_minus[ terminal ]
-            
+
         self._conductance_tensor_calc_flag[quantity]=True
         return sigma
-    
+
     def _calc_conductance_tensors(self):
         self.charge_conductance_tensor = self.conductance_tensor('charge')
         self.heat_conductance_tensor = self.conductance_tensor('heat')
-        
+
     def _temperature_to_heatcurrent(self, temperatures):
         return [ kappa0*temperatures[i]**2/2 for i in range( len(temperatures) ) ]
-        
+
     def current_all_terminals(self,quantity='charge',unit='quantized'):
         if unit=='quantized':
             unit_coeff = 1
@@ -203,7 +207,7 @@ class QuantumHall:
             unit_coeff = sigma0
         else:
             raise ValueError("The unit should be either 'quantized' or 'SI'")
-            
+
         #self.calc_conductance_tensors()
         if quantity=='charge':
             self.charge_conductance_tensor = self.conductance_tensor('charge')
@@ -218,21 +222,21 @@ class QuantumHall:
                 return self._temperature_to_heatcurrent( np.matmul( self.self.heat_conductance_tensor, self.temperatures) )
         else:
             raise ValueError("The argument quantity should be either 'charge' or 'heat' ")
-            
+
     def four_terminal_conductance( self ,current_terminals, potential_terminals ,quantity='charge'):
         if self.num_terminals <3:
             raise ValueError('Number of terminals shoud be at least 3')
-            
+
         current_order = [ current_terminals[0]-1,current_terminals[1]-1 ]
         for terminal in range(self.num_terminals):
             if not(terminal+1 in current_terminals):
                 current_order += [terminal]
-        
+
         potential_order = [ potential_terminals[0]-1,potential_terminals[1]-1 ]
         for terminal in range(self.num_terminals):
             if not(terminal+1 in potential_terminals):
                 potential_order += [terminal]
-        
+
         if self._conductance_tensor_calc_flag[quantity]==False:
             if quantity=='charge':
                 self.charge_conductance_tensor = self.conductance_tensor('charge')
@@ -240,15 +244,15 @@ class QuantumHall:
                 self.heat_conductance_tensor = self.conductance_tensor('heat')
             else:
                 raise ValueError("The argument quantity should be either 'charge' or 'heat' ")
-        
-        
+
+
         if quantity=='charge':
             sigma_shuffled = self.charge_conductance_tensor[ current_order ].transpose()[potential_order].transpose()
         elif quantity=='heat':
             sigma_shuffled = self.heat_conductance_tensor[ current_order ].transpose()[potential_order].transpose()
         else:
             raise ValueError("The argument quantity should be either 'charge' or 'heat' ")
-        
+
         sigma_SS = sigma_shuffled[:2,:2].copy()
         sigma_ST = sigma_shuffled[:2,2:self.num_terminals].copy()
         sigma_TS = sigma_shuffled[2:self.num_terminals,:2].copy()
@@ -260,12 +264,12 @@ class QuantumHall:
         except la.LinAlgError:
             raise la.LinAlgError( 'Error: The current between the terminals {} and {} cannot be determined from the potentials at'\
                   ' the terminals {} and {}'.format( current_terminals[0],current_terminals[1],potential_terminals[0],potential_terminals[1] ) )
-            
-            
+
+
     def two_terminal_conductance(self, voltage_terminals , quantity='charge'):
         if self.num_terminals>2:
             return self.four_terminal_conductance(voltage_terminals,voltage_terminals,quantity )
-        
+
         if self._conductance_tensor_calc_flag[quantity]==False:
             if quantity=='charge':
                 self.charge_conductance_tensor = self.conductance_tensor('charge')
@@ -273,12 +277,10 @@ class QuantumHall:
                 self.heat_conductance_tensor = self.conductance_tensor('heat')
             else:
                 raise ValueError("The argument quantity should be either 'charge' or 'heat' ")
-         
+
         if quantity=='charge':
             return -self.charge_conductance_tensor[0,0]
         elif quantity=='heat':
             return -self.heat_conductance_tensor[0,0]
         else:
             raise ValueError("The argument quantity should be either 'charge' or 'heat' ")
-                
-        
