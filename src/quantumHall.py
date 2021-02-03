@@ -170,13 +170,14 @@ class QuantumHall:
         d_minus = np.zeros( self.num_terminals, dtype=float )
 
         eigvals , eigvecs = la.eig( np.matrix( d_propagation_matrix,dtype= np.float ) )
+        #print( "eigs:  ",eigvals , eigvecs )
         for terminal in range(self.num_terminals):
             propagation_matrix = np.matrix( [ [np.exp( zeroone_vec[j]*self.inter_terminal_length_vector[terminal]*eigvals[a]  )
-                                               *eigvecs[j,a] for j in range(self.num_modes)] 
-                                             for a in range(self.num_modes)   ] ,dtype=np.float)
-            
+                                               *eigvecs[j,a] for a in range(self.num_modes)] 
+                                             for j in range(self.num_modes)   ] ,dtype=np.float)
+            #print( "prop: ", propagation_matrix )
             Ieig_Pinv = np.real( np.matmul( eigvecs,la.inv(propagation_matrix) ) )
-            
+            #print( Ieig_Pinv )
             d_plus[terminal] = sum( sum( Ieig_Pinv[j,i]*self.chirality_vector[i]*quant_charge_vector[i]*
                                         (1+self.chirality_vector[i] )/2 
                                         for j in range(self.num_modes)  )
@@ -186,9 +187,6 @@ class QuantumHall:
                                          for j in range(self.num_modes)  )
                         for i in range(self.num_modes)  )
         #print( d_plus, d_minus )
-        #print(self.num_terminals, d_plus)
-        #terminal = 0
-        #print( d_plus[ (terminal-1)%self.num_terminals ] )
         sigma = np.zeros( (self.num_terminals, self.num_terminals), dtype=float   )
         for terminal in range(self.num_terminals):
             sigma[terminal,(terminal-1 )%self.num_terminals ] += d_plus[ (terminal-1)%self.num_terminals ]
