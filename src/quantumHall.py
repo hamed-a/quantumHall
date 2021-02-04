@@ -79,9 +79,9 @@ class QuantumHall:
             [
                 [ self.chirality_vector[b]/self.charge_vector[b]*(self.charge_conduct_matrix[a,b]-
             np.identity(self.num_modes)[a,b]*sum(self.charge_conduct_matrix[a,c]  for c in range(self.num_modes))  )
-                                                         for a in range(self.num_modes)
+                                                         for b in range(self.num_modes)
                 ]
-                                                      for b in range(self.num_modes)
+                                                      for a in range(self.num_modes)
             ]
                                                        )
 
@@ -89,9 +89,9 @@ class QuantumHall:
             [
                 [ self.chirality_vector[b]/self.central_charge_vector[b]*(self.heat_conduct_matrix[a,b]-
             np.identity(self.num_modes)[a,b]*sum(self.heat_conduct_matrix[a,c]  for c in range(self.num_modes))  )
-                                                         for a in range(self.num_modes)
+                                                         for b in range(self.num_modes)
                 ]
-                                                      for b in range(self.num_modes)
+                                                      for a in range(self.num_modes)
             ]
                                                        )
 
@@ -118,8 +118,6 @@ class QuantumHall:
         solution_coeffs = la.solve(propagation_matrix, emanating_currents)
 
         JLtoR = sum( sum( solution_coeffs[i]*eigvecs[j,i] for i in range(self.num_modes) ) for j in range(self.num_modes) )
-        #JRtoL = sum( sum( solution_coeffs[i]*np.exp( eigvals[i]*L )*
-         #                eigvecs[j,i] for i in range(self.num_modes) ) for j in range(self.num_modes) )
 
         return JLtoR
 
@@ -129,7 +127,6 @@ class QuantumHall:
         current_outtoR = np.zeros(self.num_terminals)
         current_infromL = np.zeros(self.num_terminals)
         for segment in range(self.num_terminals):
-            #current_LtoR[segment],current_RtoL[segment] =
             current = self.current_segment( self.charge_d_propagation_matrix, self.voltages[segment],
                                                                 self.voltages[(segment+1)%self.num_terminals],
                                                                  self.inter_terminal_length_vector[segment] )
@@ -140,7 +137,6 @@ class QuantumHall:
         #current_tot = []
         for terminal in range(self.num_terminals):
             current_tot[terminal] = -current_outtoR[terminal]+current_infromL[terminal]
-            #current_tot.append( (current_infromL[terminal],current_outtoR[terminal]) )
 
         return current_tot
 
@@ -170,14 +166,15 @@ class QuantumHall:
         d_minus = np.zeros( self.num_terminals, dtype=float )
 
         eigvals , eigvecs = la.eig( np.matrix( d_propagation_matrix,dtype= np.float ) )
-        #print( "eigs:  ",eigvals , eigvecs )
+        
         for terminal in range(self.num_terminals):
             propagation_matrix = np.matrix( [ [np.exp( zeroone_vec[j]*self.inter_terminal_length_vector[terminal]*eigvals[a]  )
                                                *eigvecs[j,a] for a in range(self.num_modes)] 
                                              for j in range(self.num_modes)   ] ,dtype=np.float)
-            #print( "prop: ", propagation_matrix )
+            
             Ieig_Pinv = np.real( np.matmul( eigvecs,la.inv(propagation_matrix) ) )
-            #print( Ieig_Pinv )
+            #Ieig_Pinv =  np.matmul( eigvecs,la.inv(propagation_matrix) ) 
+            
             d_plus[terminal] = sum( sum( Ieig_Pinv[j,i]*self.chirality_vector[i]*quant_charge_vector[i]*
                                         (1+self.chirality_vector[i] )/2 
                                         for j in range(self.num_modes)  )
@@ -186,10 +183,10 @@ class QuantumHall:
                                          (1-self.chirality_vector[i] )/2 
                                          for j in range(self.num_modes)  )
                         for i in range(self.num_modes)  )
-        #print( d_plus, d_minus )
+        
         sigma = np.zeros( (self.num_terminals, self.num_terminals), dtype=float   )
         for terminal in range(self.num_terminals):
-            sigma[terminal,(terminal-1 )%self.num_terminals ] += d_plus[ (terminal-1)%self.num_terminals ]
+            sigma[terminal,(terminal-1 )%self.num_terminals ] = d_plus[ (terminal-1)%self.num_terminals ]
             sigma[terminal,terminal] = d_minus[ (terminal-1)%self.num_terminals ] - d_plus[terminal]
             sigma[terminal,(terminal+1 )%self.num_terminals ] += -d_minus[ terminal ]
 
